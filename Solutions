@@ -56,7 +56,7 @@ VALUES
 *****************************************************************************************************************************************************************
 
 
---*********************What is the total amount each customer spent at the restaurant?********************************
+--********************* QUE 1) What is the total amount each customer spent at the restaurant?********************************
 SELECT s.customer_id , SUM( m.price)  FROM sales s 
 join menu m
 on m.product_id=s.product_id
@@ -65,7 +65,7 @@ order by s.customer_id
 -- A,B,C spent 76,74,36 amounts at the restaurant
 
 
---********************  QUE 1)  How many days has each customer visited the restaurant?*****************************************
+--********************  QUE 2)  How many days has each customer visited the restaurant?*****************************************
 SELECT * FROM sales;
 
 select customer_id, count(DISTINCT(order_date)) AS no_of_visits  from sales
@@ -74,7 +74,7 @@ order by customer_id
 -- A ,B,C visited 4,6,2 times the restaurant 
 
 
---******************** QUE 2) What was the first item from the menu purchased by each customer?*************************************
+--******************** QUE 3) What was the first item from the menu purchased by each customer?*************************************
    
 SELECT  DISTINCT(s.customer_id) ,m.product_name from menu m
 join sales s
@@ -83,7 +83,7 @@ where s.order_date='2021-01-01'
 -- A, B purchased curry first and C purchased ramen first
 
 
---******************** QUE 3) What is the most purchased item on the menu and how many times was it purchased by all customers?**************
+--******************** QUE 4) What is the most purchased item on the menu and how many times was it purchased by all customers?**************
 SELECT * FROM menu
 
 SELECT  TOP 1 m.product_name, COUNT(s.product_id) as purchased_count FROM sales s
@@ -93,7 +93,7 @@ order by purchased_count desc
 -- most purchased item is ramen that is purchased overall 8 times by customers
 
 
---**********************QUE 4) Which item was the most popular for each customer? ******************************************
+--**********************QUE 5) Which item was the most popular for each customer? ******************************************
 SELECT  s.customer_id, m.product_name, COUNT(s.product_id) as purchased_count FROM sales s
 join menu m on m.product_id=s.product_id
 GROUP BY s.customer_id, m.product_name
@@ -101,7 +101,7 @@ order by purchased_count desc
 --  A,C likes Ramen most and B likes Sushi
 
 
---********************** QUE 5) Which item was purchased first by the customer after they became a member? ***************************
+--********************** QUE 6) Which item was purchased first by the customer after they became a member? ***************************
 SELECT TOP 1 customer_id, order_date, product_name 
 FROM sales
 LEFT JOIN menu 
@@ -111,7 +111,7 @@ ORDER BY order_date
 -- A is the member who purchased ramen after becoming a member
 
 
---******************** QUE 6)  Which item was purchased just before the customer became a member? ********************************
+--******************** QUE 7)  Which item was purchased just before the customer became a member? ********************************
 SELECT TOP 1 customer_id, order_date, product_name 
 FROM sales
 LEFT JOIN menu 
@@ -121,7 +121,7 @@ ORDER BY order_date DESC
 -- so B was the customer who purchased just before the membership
 
 
---********************* QUE 7) What is the total items and amount spent for each member before they became a member?****************************
+--********************* QUE 8) What is the total items and amount spent for each member before they became a member?****************************
 
 SELECT  customer_id, COUNT(sales.product_id), SUM( price)
 FROM sales
@@ -130,5 +130,45 @@ LEFT JOIN menu
 WHERE (customer_id ='A' AND order_date < '2021-01-07') OR(customer_id ='B' AND order_date < '2021-01-09')   -- date after membership
 GROUP BY customer_id 
 
+ 
+--********************** QUE 9) If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
+With Points AS
+(
+Select *, Case When product_id = 1 THEN price*20
+               Else price*10
+	       End as Points
+From Menu
+)
+Select S.customer_id, Sum(p.Points) as Points
+From Sales S
+Join Points p
+On p.product_id = S.product_id
+Group by S.customer_id
 
---********************** QUE 8) 
+
+/************************* QUE 10) In the first week after a customer joins the program (including their join date) they earn 2x points on all items, 
+not just sushi - how many points do customer A and B have at the end of January?*************************************************/
+
+WITH points_calc AS (
+  SELECT *,
+    (
+      CASE
+        WHEN s.order_date - m.join_date >= 0 and s.order_date - m.join_date <= 6 THEN price * 10 * 2
+        WHEN product_name = 'sushi' THEN price * 10 * 2
+        ELSE price * 10
+      END
+    ) as points
+  FROM sales s
+  JOIN menu mu
+  ON  mu.product_id= s.product_id
+  JOIN members m
+  ON m.customer_id=s.customer_id
+  WHERE EXTRACT(MONTH FROM order_date) = 1 AND EXTRACT(YEAR FROM order_date) = 2021
+)
+SELECT customer_id, SUM(points) AS points_total
+FROM points_calc
+GROUP BY customer_id;
+
+************************************************************************************************************************************************************************
+
+
